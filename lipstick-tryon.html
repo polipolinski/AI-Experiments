@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Примерка помады — AI Beauty</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0d0c; --surface: #1a1714; --surface2: #231f1b;
+    --border: rgba(255,255,255,.09); --border2: rgba(255,255,255,.16);
+    --text: #f0ece6; --text-muted: #8a837a; --text-dim: #5c5650;
+    --accent: #c9705a; --accent-light: #e8927a;
+  }
+  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Helvetica Neue', Arial, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; padding: 1.5rem 1rem 3rem; }
+  header { text-align: center; margin-bottom: 1.5rem; }
+  header .eyebrow { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  header h1 { font-size: clamp(24px,5vw,36px); font-weight: 400; font-family: Georgia, serif; }
+  header h1 em { font-style: italic; color: var(--accent-light); }
+  .app { width: 100%; max-width: 520px; }
+  .cam-wrap { position: relative; width: 100%; aspect-ratio: 3/4; border-radius: 16px; overflow: hidden; background: #000; border: 1px solid var(--border); }
+  video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  canvas#overlay { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+  .status-pill { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); backdrop-filter: blur(6px); border-radius: 20px; padding: 5px 14px; font-size: 12px; color: rgba(255,255,255,.75); white-space: nowrap; pointer-events: none; z-index: 10; }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #aaa; margin-right: 6px; vertical-align: middle; }
+  .status-dot.green { background: #4CAF50; }
+  .status-dot.yellow { background: #FFC107; }
+  .status-dot.red { background: #f44336; }
+  .colortype-wrap { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; gap: 8px; justify-content: center; pointer-events: none; }
+  .ct-badge { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .4s; }
+  .ct-badge.show { opacity: 1; }
+  .ct-warm { background: rgba(220,150,60,.25); color: #d4924a; border: 1px solid rgba(220,150,60,.3); }
+  .ct-cool { background: rgba(90,130,210,.25); color: #7ea4d8; border: 1px solid rgba(90,130,210,.3); }
+  .ct-neutral { background: rgba(180,170,160,.18); color: #b0a89e; border: 1px solid rgba(180,170,160,.25); }
+  .controls { margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem; }
+  .ctrl-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+  .shades { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 6px; }
+  .shade-btn { width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid transparent; cursor: pointer; transition: transform .15s, border-color .2s; position: relative; flex-shrink: 0; }
+  .shade-btn:hover { transform: scale(1.1); }
+  .shade-btn.selected { border-color: #fff; transform: scale(1.08); }
+  .shade-btn .slabel { position: absolute; bottom: -17px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--text-dim); white-space: nowrap; }
+  .shades-outer { padding-bottom: 22px; }
+  .divider { height: 1px; background: var(--border); margin: 14px 0; }
+  .lip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lip-btn { padding: 10px 8px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; color: var(--text-muted); font-size: 12px; cursor: pointer; text-align: center; transition: border-color .2s, color .2s, background .2s; }
+  .lip-btn .lico { font-size: 20px; display: block; margin-bottom: 4px; }
+  .lip-btn:hover { border-color: var(--accent); color: var(--text); }
+  .lip-btn.selected { border-color: var(--accent); background: rgba(201,112,90,.12); color: var(--accent-light); }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .slider-row label { font-size: 12px; color: var(--text-muted); min-width: 80px; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .slider-row span { font-size: 12px; color: var(--text-muted); min-width: 30px; text-align: right; }
+  .info-card { margin-top: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; color: var(--text-muted); }
+  .info-row strong { color: var(--text); font-weight: 500; }
+  .compat-bar-bg { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .compat-bar { height: 100%; border-radius: 2px; background: var(--accent); transition: width .6s ease; width: 0%; }
+  footer { margin-top: 2rem; font-size: 11px; color: var(--text-dim); letter-spacing: .04em; }
+  .error-box { color: #e88; font-size: 13px; margin-top: 10px; padding: 10px; background: rgba(180,50,50,.15); border-radius: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <p class="eyebrow">Beauty Try-On</p>
+  <h1>Примерка <em>помады</em></h1>
+</header>
+<div class="app">
+  <div class="cam-wrap" id="camWrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="status-pill"><span class="status-dot" id="sdot"></span><span id="stext">Загрузка...</span></div>
+    <div class="colortype-wrap"><span class="ct-badge" id="ctBadge"></span></div>
+  </div>
+  <div class="controls">
+    <p class="ctrl-label">Оттенок помады</p>
+    <div class="shades-outer">
+      <div class="shades" id="shadeGrid">
+        <button class="shade-btn selected" data-color="196,149,106" data-name="нюд" style="background:#C4956A"><span class="slabel">нюд</span></button>
+        <button class="shade-btn" data-color="224,100,140" data-name="розовый" style="background:#F48FB1"><span class="slabel">розовый</span></button>
+        <button class="shade-btn" data-color="192,57,43" data-name="красный" style="background:#C0392B"><span class="slabel">красный</span></button>
+        <button class="shade-btn" data-color="142,58,89" data-name="ягодный" style="background:#8E3A59"><span class="slabel">ягодный</span></button>
+        <button class="shade-btn" data-color="76,175,80" data-name="зелёный" style="background:#4CAF50"><span class="slabel">зелёный</span></button>
+        <button class="shade-btn" data-color="33,150,243" data-name="синий" style="background:#2196F3"><span class="slabel">синий</span></button>
+        <button class="shade-btn" data-color="30,25,25" data-name="чёрный" style="background:#1a1a1a;border:1.5px solid rgba(255,255,255,.2)"><span class="slabel">чёрный</span></button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <p class="ctrl-label">Форма губ</p>
+    <div class="lip-grid">
+      <button class="lip-btn selected" data-lip="natural"><span class="lico">💋</span>По контуру</button>
+      <button class="lip-btn" data-lip="overline"><span class="lico">✨</span>+1 мм в подарок</button>
+    </div>
+    <div class="slider-row">
+      <label>Насыщенность</label>
+      <input type="range" id="opacitySlider" min="20" max="90" value="60">
+      <span id="opacityVal">60%</span>
+    </div>
+  </div>
+  <div class="info-card">
+    <div class="info-row"><span>Оттенок</span><strong id="iShade">нюд</strong></div>
+    <div class="info-row"><span>Цветотип</span><strong id="iType">определяется...</strong></div>
+    <div class="info-row"><span>Совместимость</span><strong id="iScore">—</strong></div>
+    <div class="compat-bar-bg"><div class="compat-bar" id="compatBar"></div></div>
+  </div>
+</div>
+<footer>Работает локально · MediaPipe · без ключей API</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let lipColor = { r: 196, g: 149, b: 106 };
+let lipOpacity = 0.60;
+let lipMode = 'natural';
+let colortype = null;
+let shadeName = 'нюд';
+let skinSamples = [];
+let frameCount = 0;
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+
+// ── Correct MediaPipe lip landmark indices ─────────────────────────────────
+// Outer lip contour (clockwise from left corner)
+const OUTER_LIP = [
+  61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291,
+  375, 321, 405, 314, 17, 84, 181, 91, 146, 61
+];
+
+// Inner lip contour (mouth opening) — to exclude inner mouth area
+const INNER_LIP = [
+  78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308,
+  324, 318, 402, 317, 14, 87, 178, 88, 95, 78
+];
+
+// Upper lip only (for gloss highlight)
+const UPPER_LIP_TOP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
+const UPPER_LIP_BOT = [61, 96, 89, 179, 86, 15, 316, 403, 319, 325, 291];
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function setStatus(text, state) {
+  document.getElementById('stext').textContent = text;
+  const d = document.getElementById('sdot');
+  d.className = 'status-dot ' + (state || '');
+}
+
+const COMPAT = {
+  warm:    { нюд:92, розовый:72, красный:85, ягодный:68, зелёный:50, синий:38, чёрный:60 },
+  cool:    { нюд:65, розовый:90, красный:78, ягодный:92, зелёный:55, синий:88, чёрный:75 },
+  neutral: { нюд:82, розовый:80, красный:80, ягодный:80, зелёный:60, синий:65, чёрный:70 }
+};
+
+function setColortype(ct) {
+  if (ct === colortype) return;
+  colortype = ct;
+  const map = { warm: ['ct-warm','☀️ тёплый'], cool: ['ct-cool','❄️ холодный'], neutral: ['ct-neutral','⚖️ нейтральный'] };
+  const [cls, label] = map[ct] || ['ct-neutral','⚖️ нейтральный'];
+  const badge = document.getElementById('ctBadge');
+  badge.className = 'ct-badge show ' + cls;
+  badge.textContent = label;
+  document.getElementById('iType').textContent = label;
+  updateCompat();
+}
+
+function updateCompat() {
+  document.getElementById('iShade').textContent = shadeName;
+  if (!colortype) return;
+  const score = (COMPAT[colortype] || COMPAT.neutral)[shadeName] || 70;
+  document.getElementById('iScore').textContent = score + '%';
+  setTimeout(() => { document.getElementById('compatBar').style.width = score + '%'; }, 60);
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+document.getElementById('shadeGrid').addEventListener('click', e => {
+  const btn = e.target.closest('.shade-btn');
+  if (!btn) return;
+  document.querySelectorAll('.shade-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const [r, g, b2] = btn.dataset.color.split(',').map(Number);
+  lipColor = { r, g, b: b2 };
+  shadeName = btn.dataset.name;
+  updateCompat();
+});
+
+document.querySelector('.lip-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.lip-btn');
+  if (!btn) return;
+  document.querySelectorAll('.lip-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  lipMode = btn.dataset.lip;
+});
+
+document.getElementById('opacitySlider').addEventListener('input', function() {
+  lipOpacity = this.value / 100;
+  document.getElementById('opacityVal').textContent = this.value + '%';
+});
+
+// ── Draw lips ──────────────────────────────────────────────────────────────
+function lmToXY(p, expand, cx, cy) {
+  let x = p.x * canvas.width;
+  let y = p.y * canvas.height;
+  if (expand !== 0) {
+    const dx = x - cx;
+    const dy = y - cy;
+    x += dx * expand;
+    y += dy * expand;
+  }
+  return [x, y];
+}
+
+function tracePath(indices, lm, expand, cx, cy) {
+  ctx.beginPath();
+  const [sx, sy] = lmToXY(lm[indices[0]], expand, cx, cy);
+  ctx.moveTo(sx, sy);
+  for (let i = 1; i < indices.length; i++) {
+    const [x, y] = lmToXY(lm[indices[i]], expand, cx, cy);
+    ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawLips(lm) {
+  // Center of lips for expansion reference
+  const cx = lm[13].x * canvas.width;
+  const cy = lm[13].y * canvas.height;
+  const expand = lipMode === 'overline' ? 0.055 : 0;
+
+  const { r, g, b } = lipColor;
+
+  // ── Outer lip fill ──
+  ctx.save();
+  tracePath(OUTER_LIP, lm, expand, cx, cy);
+  ctx.fillStyle = `rgba(${r},${g},${b},${lipOpacity})`;
+  ctx.fill();
+
+  // ── Subtract inner mouth (make it look natural, not painted over teeth) ──
+  // We use destination-out on an offscreen layer approach:
+  // Simply cut the inner lip path with a slightly lower opacity
+  tracePath(INNER_LIP, lm, expand * 0.3, cx, cy);
+  ctx.globalCompositeOperation = 'destination-out';
+  // Only cut if mouth is open: check jaw distance
+  const jawOpen = Math.abs(lm[13].y - lm[14].y) * canvas.height;
+  const lipH = Math.abs(lm[0].y - lm[17].y) * canvas.height;
+  if (jawOpen > lipH * 0.25) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.min(1, (jawOpen / lipH - 0.25) * 3)})`;
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // ── Soft edge stroke ──
+  tracePath(OUTER_LIP, lm, expand, cx, cy);
+  ctx.strokeStyle = `rgba(${r},${g},${b},${lipOpacity * 0.4})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // ── Gloss highlight on upper lip ──
+  const glossX = cx;
+  const glossY = (lm[0].y * canvas.height + cy) / 2 - 2;
+  const lipW = Math.abs(lm[291].x - lm[61].x) * canvas.width;
+  const gradR = lipW * 0.22;
+  const grad = ctx.createRadialGradient(glossX, glossY, 0, glossX, glossY, gradR);
+  grad.addColorStop(0, `rgba(255,255,255,${lipOpacity * 0.5})`);
+  grad.addColorStop(1, `rgba(255,255,255,0)`);
+  ctx.beginPath();
+  ctx.ellipse(glossX, glossY, gradR, gradR * 0.45, 0, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ── Skin tone analysis ─────────────────────────────────────────────────────
+function analyzeSkin(lm) {
+  const off = document.createElement('canvas');
+  off.width = canvas.width;
+  off.height = canvas.height;
+  const octx = off.getContext('2d');
+  octx.translate(canvas.width, 0);
+  octx.scale(-1, 1);
+  octx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  let totalR = 0, totalG = 0, totalB = 0, count = 0;
+  // cheek points: 234 left cheek, 454 right cheek, 116 left, 345 right
+  [lm[234], lm[454], lm[116], lm[345]].forEach(p => {
+    const px = Math.round(p.x * canvas.width);
+    const py = Math.round(p.y * canvas.height);
+    try {
+      const id = octx.getImageData(px - 5, py - 5, 10, 10);
+      for (let i = 0; i < id.data.length; i += 4) {
+        totalR += id.data[i]; totalG += id.data[i+1]; totalB += id.data[i+2]; count++;
+      }
+    } catch(e) {}
+  });
+  if (count === 0) return;
+
+  const r = totalR/count, g = totalG/count, b = totalB/count;
+  const warmth = (r - b) / (r + b + 1);
+  skinSamples.push(warmth);
+  if (skinSamples.length > 60) skinSamples.shift();
+  if (skinSamples.length < 15) return;
+
+  const avg = skinSamples.reduce((s, x) => s + x, 0) / skinSamples.length;
+  setColortype(avg > 0.10 ? 'warm' : avg < 0.04 ? 'cool' : 'neutral');
+}
+
+// ── Main result handler ────────────────────────────────────────────────────
+function onResults(results) {
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.multiFaceLandmarks || !results.multiFaceLandmarks.length) {
+    setStatus('Лицо не найдено', 'yellow');
+    return;
+  }
+
+  setStatus('Работает ✓', 'green');
+  const lm = results.multiFaceLandmarks[0];
+  drawLips(lm);
+
+  frameCount++;
+  if (frameCount % 20 === 0) analyzeSkin(lm);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+    });
+    video.srcObject = stream;
+    setStatus('Загрузка модели...', 'yellow');
+
+    const faceMesh = new FaceMesh({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6
+    });
+    faceMesh.onResults(onResults);
+
+    const camera = new Camera(video, {
+      onFrame: async () => { if (video.readyState >= 2) await faceMesh.send({ image: video }); },
+      width: 640, height: 480
+    });
+    camera.start();
+  } catch(e) {
+    setStatus('Нет доступа к камере', 'red');
+    document.getElementById('camWrap').insertAdjacentHTML('afterend',
+      `<div class="error-box">Ошибка: ${e.message}<br>
+      Запусти: <code>python -m http.server 8080</code> и открой <code>http://localhost:8080/lipstick-tryon.html</code></div>`);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
