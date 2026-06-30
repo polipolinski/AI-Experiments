@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Генератор поздравлений</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fbf6ee;
+    --surface: #ffffff;
+    --surface-2: #f3ecdd;
+    --border: rgba(40,30,20,.10);
+    --border-strong: rgba(40,30,20,.18);
+    --text: #2b2316;
+    --text-muted: #756952;
+    --text-dim: #a89977;
+    --accent: #c0572f;
+    --accent-light: #e08a5e;
+    --accent-bg: rgba(192,87,47,.10);
+  }
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  body { display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
+
+  header { text-align: center; margin-bottom: 2rem; max-width: 480px; }
+  header .eyebrow {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  }
+  header h1 {
+    font-family: Georgia, serif; font-size: clamp(26px, 6vw, 38px);
+    font-weight: 400; line-height: 1.15; color: var(--text);
+  }
+  header h1 em { font-style: italic; color: var(--accent); }
+  header p { font-size: 14px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
+
+  .app { width: 100%; max-width: 480px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .field { margin-bottom: 1.25rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 600; margin-bottom: 10px; display: block;
+  }
+
+  .pill-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text-muted); font-size: 13px;
+    cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .pill:hover { border-color: var(--accent-light); color: var(--text); }
+  .pill.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .age-input {
+    width: 100%; padding: 11px 14px; border-radius: 10px;
+    border: 1px solid var(--border-strong); background: var(--surface-2);
+    color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  .age-input:focus { outline: none; border-color: var(--accent); }
+  .age-input::placeholder { color: var(--text-dim); }
+
+  .generate-btn {
+    width: 100%; padding: 15px; font-size: 15px; font-weight: 600;
+    border-radius: 12px; border: none; background: var(--accent); color: #fff;
+    cursor: pointer; transition: background .15s, transform .1s; font-family: inherit;
+    letter-spacing: .01em;
+  }
+  .generate-btn:hover { background: var(--accent-light); }
+  .generate-btn:active { transform: scale(.98); }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem;
+    display: none;
+    position: relative;
+  }
+  .result-card.show { display: block; animation: fadein .35s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .result-eyebrow {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 14px;
+  }
+  .result-text {
+    font-family: Georgia, serif; font-size: 17px; line-height: 1.7;
+    color: var(--text); white-space: pre-line;
+  }
+
+  .result-actions { display: flex; gap: 10px; margin-top: 1.5rem; }
+  .action-btn {
+    flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text-muted); font-size: 13px;
+    cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .action-btn:hover { border-color: var(--accent-light); color: var(--text); }
+  .action-btn.copied { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  footer { margin-top: 2.5rem; font-size: 11px; color: var(--text-dim); text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Генератор поздравлений</p>
+  <h1>Слова для <em>особого</em> момента</h1>
+  <p>Выбери праздник, получателя и стиль — получи готовый текст поздравления.</p>
+</header>
+
+<div class="app">
+
+  <div class="card">
+    <div class="field">
+      <span class="field-label">Праздник</span>
+      <div class="pill-grid" id="holidayGrid">
+        <button class="pill selected" data-value="birthday">День рождения</button>
+        <button class="pill" data-value="march8">8 марта</button>
+        <button class="pill" data-value="feb23">23 февраля</button>
+        <button class="pill" data-value="newyear">Новый год</button>
+        <button class="pill" data-value="housewarming">Новоселье</button>
+        <button class="pill" data-value="career">Карьерный рывок</button>
+        <button class="pill" data-value="wedding">Свадьба</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Гендер получателя</span>
+      <div class="pill-grid" id="genderGrid">
+        <button class="pill selected" data-value="female">Женщина</button>
+        <button class="pill" data-value="male">Мужчина</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Имя получателя (необязательно)</span>
+      <input type="text" class="age-input" id="nameInput" placeholder="например, Анна">
+    </div>
+
+    <div class="field">
+      <span class="field-label">Возраст (необязательно)</span>
+      <input type="number" class="age-input" id="ageInput" placeholder="например, 30" min="1" max="120">
+    </div>
+
+    <div class="field">
+      <span class="field-label">Личная деталь (необязательно)</span>
+      <input type="text" class="age-input" id="detailInput" placeholder="например, наша поездка в горы, твой новый проект">
+    </div>
+
+    <div class="field">
+      <span class="field-label">Длина текста</span>
+      <div class="pill-grid" id="lengthGrid">
+        <button class="pill" data-value="short">Короткое</button>
+        <button class="pill selected" data-value="medium">Среднее</button>
+        <button class="pill" data-value="long">Длинное</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Стиль</span>
+      <div class="pill-grid" id="styleGrid">
+        <button class="pill selected" data-value="warm">Тепло и близко</button>
+        <button class="pill" data-value="funny">Прикольно</button>
+        <button class="pill" data-value="formal">Официально</button>
+        <button class="pill" data-value="original">Оригинально</button>
+        <button class="pill" data-value="loving">Любяще</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Тип отношений</span>
+      <div class="pill-grid" id="relationGrid">
+        <button class="pill selected" data-value="friend">Друг или подруга</button>
+        <button class="pill" data-value="colleague">Коллега</button>
+        <button class="pill" data-value="boss">Начальник</button>
+        <button class="pill" data-value="partner">Партнёр</button>
+        <button class="pill" data-value="parent">Родитель</button>
+        <button class="pill" data-value="child">Дочь или сын</button>
+        <button class="pill" data-value="sibling">Сестра или брат</button>
+        <button class="pill" data-value="relative">Другой родственник</button>
+        <button class="pill" data-value="acquaintance">Знакомый</button>
+        <button class="pill" data-value="ex">Бывший</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Эмодзи в тексте</span>
+      <div class="pill-grid" id="emojiGrid">
+        <button class="pill selected" data-value="off">Без эмодзи</button>
+        <button class="pill" data-value="on">С эмодзи</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="generate-btn" id="generateBtn">Сгенерировать поздравление ✨</button>
+
+  <div class="result-card" id="resultCard" style="margin-top: 1rem;">
+    <p class="result-eyebrow">Готовое поздравление</p>
+    <p class="result-text" id="resultText"></p>
+    <div class="result-actions">
+      <button class="action-btn" id="copyBtn">Скопировать</button>
+      <button class="action-btn" id="regenBtn">Другой вариант</button>
+    </div>
+  </div>
+
+</div>
+
+<footer>Работает локально · без интернета и ключей API</footer>
+
+<script>
+// Банк фраз для генератора поздравлений.
+// Структура: каждый праздник имеет наборы "открытий", "пожеланий" и "закрытий" по стилю.
+// Тип отношений влияет на обращение и добавляет специфичные вставки.
+
+const HOLIDAY_NAMES = {
+  birthday: 'с днём рождения',
+  march8: 'с 8 марта',
+  feb23: 'с 23 февраля',
+  newyear: 'с Новым годом',
+  housewarming: 'с новосельем',
+  career: 'с карьерным рывком',
+  wedding: 'со свадьбой'
+};
+
+const RELATION_ADDRESS = {
+  friend: { female: ['подруга', 'дорогая моя'], male: ['друг', 'дружище'] },
+  colleague: { female: ['коллега'], male: ['коллега'] },
+  boss: { female: ['Уважаемая руководительница'], male: ['Уважаемый руководитель'] },
+  partner: { female: ['любимая', 'родная'], male: ['любимый', 'родной'] },
+  parent: { female: ['мама', 'дорогая мама'], male: ['папа', 'дорогой папа'] },
+  child: { female: ['дочка', 'родная моя'], male: ['сынок', 'родной мой'] },
+  sibling: { female: ['сестрёнка', 'сестра'], male: ['братишка', 'брат'] },
+  relative: { female: ['дорогая родственница'], male: ['дорогой родственник'] },
+  acquaintance: { female: [''], male: [''] },
+  ex: { female: [''], male: [''] }
+};
+
+// Открытия по стилю (универсальные, не привязаны к празднику)
+const OPENERS = {
+  warm: [
+    'Сегодня особенный день, и мне хочется сказать тебе самые искренние слова.',
+    'В такой день хочется остановиться и просто сказать: ты важен(на) для меня.',
+    'Пишу тебе с самыми тёплыми чувствами в этот день.'
+  ],
+  funny: [
+    'Так, минутка официальных поздравлений (но с перчинкой).',
+    'Внимание, внимание — особое объявление для особенного человека!',
+    'Готовься, сейчас будет порция поздравительного безумия.'
+  ],
+  formal: [
+    'Поздравляю с этим знаменательным событием.',
+    'В этот важный день хочу выразить свои искренние поздравления.',
+    'Сегодняшний день заслуживает особого внимания и тёплых слов.'
+  ],
+  original: [
+    'Если бы поздравления продавались в магазине, я бы выбрал(а) для тебя самое неожиданное.',
+    'Вместо банальных строчек напишу то, что действительно думаю.',
+    'Пусть это поздравление будет не как все остальные.'
+  ],
+  loving: [
+    'Сердце переполняется теплом, когда я думаю о тебе в этот день.',
+    'Хочу, чтобы ты знал(а), как сильно тебя ценю именно сегодня.',
+    'Каждое слово этого поздравления идёт от самого сердца.'
+  ]
+};
+
+// Пожелания по празднику и стилю
+const WISHES = {
+  birthday: {
+    warm: ['Пусть этот год принесёт тебе спокойствие, радость и людей, которые ценят тебя так, как ты заслуживаешь.', 'Желаю здоровья, душевного тепла и побольше моментов настоящего счастья.'],
+    funny: ['Желаю в новом году возраста чувствовать ровно на минус десять лет, а мудрости — плюс десять.', 'Пусть торт будет вкусным, подарки — нужными, а похмелье после праздника — символическим.'],
+    formal: ['Желаю крепкого здоровья, профессиональных успехов и благополучия в кругу близких.', 'Пусть наступающий год принесёт стабильность, новые достижения и исполнение намеченных планов.'],
+    original: ['Желаю тебе в этом году хотя бы раз сделать что-то совершенно безрассудное — и не пожалеть об этом.', 'Пусть вселенная в качестве подарка подкинет тебе именно то, о чём ты даже не догадываешься попросить.'],
+    loving: ['Желаю, чтобы рядом с тобой всегда был тот, кто любит тебя так же сильно, как я.', 'Пусть этот год будет наполнен любовью, нежностью и моментами, которые хочется хранить вечно.']
+  },
+  march8: {
+    warm: ['Пусть в твоей жизни будет больше моментов, когда тебя ценят просто за то, что ты есть.', 'Желаю тепла, заботы и того особенного женского счастья, которое не купишь ни за какие деньги.'],
+    funny: ['Поздравляю с днём, когда можно официально требовать комплименты и цветы у всех мужчин в радиусе видимости.', 'Желаю сегодня не готовить, не убирать и хотя бы один раз услышать "ты прекрасна" без подвоха.'],
+    formal: ['Поздравляю с международным женским днём и желаю весеннего настроения, успехов и благополучия.', 'Пусть этот праздник принесёт радость, уважение и признание твоих заслуг.'],
+    original: ['Пусть весна в этом году подарит тебе что-то более интересное, чем просто хорошую погоду.', 'Желаю, чтобы хотя бы один комплимент сегодня застал тебя врасплох.'],
+    loving: ['Ты — весна моей жизни, и я благодарен(на) судьбе за каждый день рядом с тобой.', 'Пусть в этот день ты почувствуешь, насколько сильно и искренне тебя любят.']
+  },
+  feb23: {
+    warm: ['Желаю силы духа, надёжных плеч рядом и спокойствия в любых обстоятельствах.', 'Пусть в жизни всегда будет повод для гордости собой и поддержка близких.'],
+    funny: ['Поздравляю с днём настоящих мужчин — то есть с поводом получить подарок просто за факт существования.', 'Желаю сегодня услышать поздравление, не связанное со словом "защитник", хотя бы один раз.'],
+    formal: ['Поздравляю с Днём защитника Отечества и желаю крепкого здоровья, успехов и мирного неба.', 'Пусть этот день станет напоминанием о силе, чести и достоинстве.'],
+    original: ['Желаю настоящих мужских побед — не на поле боя, а в обычных бытовых сражениях с пультом от телевизора.', 'Пусть этот праздник напомнит тебе, что быть собой — уже подвиг.'],
+    loving: ['Ты — моя опора, и сегодня хочу сказать спасибо за то, что ты есть.', 'Пусть рядом с тобой всегда будет тот, кто гордится тобой искренне и без условий.']
+  },
+  newyear: {
+    warm: ['Пусть новый год принесёт спокойствие, тёплые встречи и исполнение самых важных желаний.', 'Желаю, чтобы новый год начался с улыбки и продолжился счастьем.'],
+    funny: ['Желаю в новом году похудеть на размер мечт и поправиться на размер удачи.', 'Пусть все обещания себе "начну с нового года" наконец-то реализуются — хотя бы одно.'],
+    formal: ['Поздравляю с наступающим Новым годом и желаю успехов, благополучия и исполнения планов.', 'Пусть новый год принесёт стабильность, новые возможности и профессиональный рост.'],
+    original: ['Пусть в новом году хотя бы одно желание исполнится так быстро, что ты не успеешь его обдумать.', 'Желаю, чтобы этот год удивил тебя приятнее, чем прошлый.'],
+    loving: ['Пусть новый год мы встретим вместе, как и все последующие.', 'Желаю, чтобы каждый день нового года напоминал тебе о том, как сильно тебя любят.']
+  },
+  housewarming: {
+    warm: ['Пусть твой новый дом наполнится теплом, уютом и счастливыми моментами.', 'Желаю, чтобы стены нового дома слышали только смех и радость.'],
+    funny: ['Поздравляю с переездом — теперь у тебя есть полное право обижаться на всех, кто не помог с коробками.', 'Желаю, чтобы новый адрес запомнился быстрее, чем старый пароль от вайфая.'],
+    formal: ['Поздравляю с новосельем и желаю благополучия, уюта и достатка в новом доме.', 'Пусть новый дом станет источником стабильности и комфорта.'],
+    original: ['Пусть в этом доме случится что-то, о чём потом будут рассказывать как о легенде.', 'Желаю, чтобы новый дом стал местом, куда всегда хочется возвращаться.'],
+    loving: ['Пусть этот дом наполнится не только вещами, но и любовью, которая в нём будет жить.', 'Желаю, чтобы каждый уголок нового дома напоминал о тех, кто тебя любит.']
+  },
+  career: {
+    warm: ['Поздравляю с этим достижением — ты заслужил(а) его своим трудом и упорством.', 'Желаю, чтобы новый этап карьеры принёс не только успех, но и удовольствие от работы.'],
+    funny: ['Поздравляю с повышением — теперь у тебя больше ответственности и повод для важного выражения лица.', 'Желаю новую должность пережить без единого нервного тика.'],
+    formal: ['Поздравляю с профессиональным успехом и желаю дальнейшего карьерного роста и признания.', 'Пусть новые обязанности приносят удовлетворение и заслуженные результаты.'],
+    original: ['Пусть на новом месте тебя ждут задачи интереснее, чем кофе-машина в офисе.', 'Желаю, чтобы карьера развивалась быстрее, чем растут счета за коммуналку.'],
+    loving: ['Я искренне рад(а) за тебя и горжусь тем, чего ты достиг(ла).', 'Пусть твой успех в карьере приносит тебе столько же радости, сколько ты приносишь мне.']
+  },
+  wedding: {
+    warm: ['Пусть ваш брак будет наполнен любовью, пониманием и поддержкой на каждом шагу.', 'Желаю вам пройти through всю жизнь рука об руку, поддерживая друг друга.'],
+    funny: ['Поздравляю со свадьбой — теперь делить пульт от телевизора придётся официально, по закону.', 'Желаю никогда не ссориться из-за того, кто забыл вынести мусор.'],
+    formal: ['Поздравляю со свадьбой и желаю крепкого, счастливого и долгого брака.', 'Пусть совместная жизнь будет наполнена взаимным уважением и благополучием.'],
+    original: ['Пусть ваш брак будет интереснее любого сериала — и без перерывов на рекламу.', 'Желаю, чтобы через много лет вы вспоминали этот день с такой же радостью, как сегодня.'],
+    loving: ['Пусть ваша любовь только крепнет с каждым годом совместной жизни.', 'Желаю, чтобы вы всегда смотрели друг на друга так же, как сегодня.']
+  }
+};
+
+// Закрытия по стилю
+const CLOSERS = {
+  warm: ['С теплом и любовью.', 'Обнимаю крепко.', 'Всегда рядом, что бы ни случилось.'],
+  funny: ['С праздником, шутник(ца)!', 'Ладно, харе сюсюкать — с праздником!', 'Это было искренне (наполовину). С праздником!'],
+  formal: ['С уважением и наилучшими пожеланиями.', 'Примите искренние поздравления.', 'С глубоким уважением.'],
+  original: ['Пусть этот текст будет не последним приятным сюрпризом сегодня.', 'Вот и всё — остальное доскажет жизнь.', 'На этом неординарность поздравления заканчивается, любовь — нет.'],
+  loving: ['Люблю тебя больше, чем умею выразить словами.', 'Ты — самое дорогое, что у меня есть.', 'С любовью, всегда твой(я).']
+};
+
+// Возрастные вставки (только для дня рождения, добираются если есть возраст)
+function ageInsert(age, style) {
+  if (!age) return '';
+  const n = parseInt(age);
+  if (isNaN(n)) return '';
+  if (style === 'funny') {
+    if (n < 18) return ` Ого, ${n} — самое время накопить мудрости на будущее.`;
+    if (n < 30) return ` ${n} — отличный возраст, чтобы делать вид, что у тебя всё под контролем.`;
+    if (n < 50) return ` ${n} лет — возраст, когда уже знаешь, чего хочешь, но всё равно сомневаешься.`;
+    return ` ${n} лет — это просто красивая цифра, не более того!`;
+  }
+  if (style === 'formal') return ` Желаю встретить ${n}-летие с достоинством и уверенностью в завтрашнем дне.`;
+  if (style === 'warm') return ` Пусть ${n} лет станут стартом для самых добрых перемен.`;
+  if (style === 'loving') return ` ${n} лет — и с каждым годом ты становишься только дороже мне.`;
+  if (style === 'original') return ` ${n} — отличное число, особенно если перестать считать его проблемой.`;
+  return '';
+}
+
+// Relation-специфичные добавки
+const RELATION_NOTE = {
+  colleague: 'Пусть рабочие будни приносят не только результаты, но и удовольствие от того, что делаешь.',
+  boss: 'Спасибо за то, что вы цените наш труд и создаёте атмосферу, в которой хочется работать.',
+  acquaintance: 'Пусть всё задуманное обязательно получится.',
+  ex: 'Пусть всё, что сейчас происходит в твоей жизни, приносит тебе только хорошее.'
+};
+
+// Эмодзи по празднику — добавляются в конец строк, если включён переключатель
+const HOLIDAY_EMOJI = {
+  birthday: ['🎉', '🎂', '🎈'],
+  march8: ['🌷', '💐', '🌸'],
+  feb23: ['🎖️', '🫡', '⭐'],
+  newyear: ['🎄', '✨', '🎆'],
+  housewarming: ['🏡', '🔑', '🛋️'],
+  career: ['🚀', '📈', '🏆'],
+  wedding: ['💍', '💐', '👰']
+};
+
+// Дополнительные предложения для длинного варианта (по стилю, универсальные)
+const LONG_EXTRAS = {
+  warm: ['Иногда жизнь пролетает так быстро, что забываешь остановиться и сказать важные слова — но сегодня тот самый день.', 'Спасибо, что ты есть в моей жизни именно такой, какой ты есть.'],
+  funny: ['Можно было бы написать ещё пару абзацев пафоса, но я лучше просто пожелаю тебе всего самого лучшего без лишних слов.', 'В общем, ты знаешь, что я хочу сказать — просто текст получился длиннее, чем планировалось.'],
+  formal: ['Хочу отметить, что ваши качества и достижения заслуживают самого глубокого уважения и признания.', 'Пусть этот день станет ещё одним поводом для гордости вашими успехами.'],
+  original: ['Если бы можно было упаковать все хорошие слова в одну фразу, она звучала бы примерно так, как этот текст — только чуть короче и куда менее искренне.', 'Пусть необычность этого поздравления станет маленьким отражением того, насколько ты на самом деле особенный(ая) человек.'],
+  loving: ['Каждый день рядом с тобой — это маленький подарок, который я не перестаю ценить.', 'Я благодарен(на) за каждую секунду, проведённую вместе, и надеюсь, что их будет ещё очень много.']
+};
+
+// Шаблоны для вставки личной детали (предложение от пользователя)
+function detailSentence(detail, style) {
+  if (!detail) return '';
+  const templates = {
+    warm: [`Вспоминаю ${detail} — и сердце теплеет.`, `До сих пор с улыбкой думаю про ${detail}.`],
+    funny: [`Помнишь ${detail}? Вот это было что-то!`, `Если бы существовала медаль за ${detail}, ты бы её точно получил(а).`],
+    formal: [`Хочу также отметить ${detail} как яркий пример ваших качеств.`, `Особенно запомнилось ${detail}.`],
+    original: [`Кстати, про ${detail} — это до сих пор лучшая часть нашей истории.`, `${detail.charAt(0).toUpperCase()+detail.slice(1)} — именно такие моменты делают жизнь интересной.`],
+    loving: [`Никогда не забуду ${detail} — это один из самых дорогих моментов для меня.`, `Вспоминая ${detail}, я лишний раз понимаю, как сильно тебя люблю.`]
+  };
+  return pick(templates[style] || templates.warm);
+}
+
+let state = {
+  holiday: 'birthday',
+  gender: 'female',
+  name: '',
+  age: '',
+  detail: '',
+  length: 'medium',
+  style: 'warm',
+  relation: 'friend',
+  emoji: 'off'
+};
+
+function setupPillGrid(id, stateKey) {
+  document.getElementById(id).addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill');
+    if (!btn) return;
+    document.querySelectorAll(`#${id} .pill`).forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state[stateKey] = btn.dataset.value;
+  });
+}
+
+setupPillGrid('holidayGrid', 'holiday');
+setupPillGrid('genderGrid', 'gender');
+setupPillGrid('styleGrid', 'style');
+setupPillGrid('relationGrid', 'relation');
+setupPillGrid('lengthGrid', 'length');
+setupPillGrid('emojiGrid', 'emoji');
+
+document.getElementById('ageInput').addEventListener('input', (e) => {
+  state.age = e.target.value;
+});
+document.getElementById('nameInput').addEventListener('input', (e) => {
+  state.name = e.target.value.trim();
+});
+document.getElementById('detailInput').addEventListener('input', (e) => {
+  state.detail = e.target.value.trim();
+});
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function buildAddress() {
+  if (state.name) return state.name;
+  const opts = RELATION_ADDRESS[state.relation]?.[state.gender] || [''];
+  return pick(opts);
+}
+
+function maybeEmoji() {
+  if (state.emoji !== 'on') return '';
+  const set = HOLIDAY_EMOJI[state.holiday] || ['🎉'];
+  return ' ' + pick(set);
+}
+
+function buildGreeting() {
+  const holidayName = HOLIDAY_NAMES[state.holiday];
+  const opener = pick(OPENERS[state.style]);
+  const wish = pick(WISHES[state.holiday][state.style]);
+  const closer = pick(CLOSERS[state.style]);
+  const address = buildAddress();
+  const emoji = maybeEmoji();
+
+  let lines = [];
+
+  // Заголовочная строка с обращением
+  let greetLine = `Поздравляю ${holidayName}`;
+  if (address) greetLine = `${address.charAt(0).toUpperCase() + address.slice(1)}! Поздравляю ${holidayName}`;
+  greetLine += '!' + emoji;
+  lines.push(greetLine);
+
+  if (state.length === 'short') {
+    // Короткий вариант: только пожелание + закрытие, без открытия
+    let wishLine = wish;
+    if (state.holiday === 'birthday' && state.age) wishLine += ageInsert(state.age, state.style);
+    lines.push(wishLine);
+    lines.push(closer + emoji);
+    return lines.join('\n');
+  }
+
+  lines.push('');
+  lines.push(opener);
+
+  let wishLine = wish;
+  if (state.holiday === 'birthday' && state.age) {
+    wishLine += ageInsert(state.age, state.style);
+  }
+  lines.push(wishLine);
+
+  // Личная деталь, если указана
+  const detailLine = detailSentence(state.detail, state.style);
+  if (detailLine) lines.push(detailLine);
+
+  // Добавка по типу отношений, если есть
+  const note = RELATION_NOTE[state.relation];
+  if (note && Math.random() > 0.3) {
+    lines.push(note);
+  }
+
+  if (state.length === 'long') {
+    const extra = pick(LONG_EXTRAS[state.style]);
+    lines.push(extra);
+  }
+
+  lines.push('');
+  lines.push(closer + emoji);
+
+  return lines.join('\n');
+}
+
+function renderResult() {
+  const text = buildGreeting();
+  document.getElementById('resultText').textContent = text;
+  document.getElementById('resultCard').classList.add('show');
+  document.getElementById('copyBtn').classList.remove('copied');
+  document.getElementById('copyBtn').textContent = 'Скопировать';
+}
+
+document.getElementById('generateBtn').addEventListener('click', renderResult);
+document.getElementById('regenBtn').addEventListener('click', renderResult);
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const text = document.getElementById('resultText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Скопировано ✓';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Скопировать';
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+});
+
+</script>
+</body>
+</html>
