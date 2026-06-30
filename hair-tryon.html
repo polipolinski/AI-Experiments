@@ -35,15 +35,31 @@
 <div class="status" id="status">Загрузка модели сегментации...</div>
 
 <div class="controls">
-  <div class="ctrl-label">Цвет волос</div>
-  <div class="colors" id="colorGrid">
-    <button class="color-btn on" data-color="212,178,128" style="background:#D4B280"><span>блонд</span></button>
+  <div class="ctrl-label">Натуральные</div>
+  <div class="colors" id="colorGridNatural">
+    <button class="color-btn on" data-color="230,222,205" style="background:#E6DECD"><span>платиновый</span></button>
+    <button class="color-btn" data-color="212,178,128" style="background:#D4B280"><span>блонд</span></button>
+    <button class="color-btn" data-color="196,148,90" style="background:#C4945A"><span>карамельный</span></button>
     <button class="color-btn" data-color="139,111,71" style="background:#8B6F47"><span>русый</span></button>
     <button class="color-btn" data-color="181,72,30" style="background:#B5481E"><span>рыжий</span></button>
+    <button class="color-btn" data-color="122,66,38" style="background:#7A4226"><span>каштановый</span></button>
     <button class="color-btn" data-color="92,58,40" style="background:#5C3A28"><span>шатен</span></button>
+    <button class="color-btn" data-color="68,38,32" style="background:#442620"><span>кофейный</span></button>
+    <button class="color-btn" data-color="150,150,148" style="background:#969694"><span>пепельный</span></button>
     <button class="color-btn" data-color="43,24,16" style="background:#2B1810"><span>брюн</span></button>
+    <button class="color-btn" data-color="20,18,17" style="background:#141211"><span>чёрный</span></button>
+  </div>
+
+  <div class="divider"></div>
+  <div class="ctrl-label">Яркие</div>
+  <div class="colors" id="colorGridVivid">
+    <button class="color-btn" data-color="180,158,212" style="background:#B49ED4"><span>лавандовый</span></button>
     <button class="color-btn" data-color="232,160,190" style="background:#E8A0BE"><span>розовый</span></button>
+    <button class="color-btn" data-color="96,18,38" style="background:#601226"><span>бордовый</span></button>
+    <button class="color-btn" data-color="108,62,168" style="background:#6C3EA8"><span>фиолетовый</span></button>
     <button class="color-btn" data-color="58,95,168" style="background:#3A5FA8"><span>синий</span></button>
+    <button class="color-btn" data-color="40,170,180" style="background:#28AAB4"><span>бирюзовый</span></button>
+    <button class="color-btn" data-color="60,140,90" style="background:#3C8C5A"><span>зелёный</span></button>
   </div>
   <div class="slider-row">
     <label>Интенсивность</label>
@@ -63,11 +79,13 @@ let tintColor = [212, 178, 128];
 let intensity = 0.7;
 let segmenter, lastTime = -1;
 
-document.getElementById('colorGrid').addEventListener('click', e => {
-  const btn = e.target.closest('.color-btn'); if(!btn) return;
-  document.querySelectorAll('.color-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  tintColor = btn.dataset.color.split(',').map(Number);
+document.querySelectorAll('#colorGridNatural, #colorGridVivid').forEach(grid => {
+  grid.addEventListener('click', e => {
+    const btn = e.target.closest('.color-btn'); if(!btn) return;
+    document.querySelectorAll('.color-btn').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    tintColor = btn.dataset.color.split(',').map(Number);
+  });
 });
 document.getElementById('intensitySlider').addEventListener('input', function(){
   intensity = this.value/100;
