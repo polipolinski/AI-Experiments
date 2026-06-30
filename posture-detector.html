@@ -314,11 +314,17 @@ window.startCamera = async function() {
     baseline = { forwardRatio: null, shoulderY: null, neckLen: null };
     goodSeconds = 0; totalSeconds = 0; lastTick = null;
 
-    video.addEventListener('loadeddata', () => {
+    function onVideoReady() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       loop();
-    });
+    }
+
+    if (video.readyState >= 2 && video.videoWidth > 0) {
+      onVideoReady();
+    } else {
+      video.addEventListener('loadeddata', onVideoReady, { once: true });
+    }
   } catch(e) {
     setStatus('Ошибка доступа к камере: ' + e.message, '#D85A30');
     document.getElementById('btn-start').style.display = 'inline-block';
@@ -331,8 +337,13 @@ function loop() {
   if (!running) return;
   if (video.currentTime !== lastVideoTime && video.readyState >= 2) {
     lastVideoTime = video.currentTime;
-    const result = landmarker.detectForVideo(video, performance.now());
-    onResults(result);
+    try {
+      const result = landmarker.detectForVideo(video, performance.now());
+      onResults(result);
+    } catch (e) {
+      console.error('detectForVideo failed:', e);
+      setStatus('Ошибка обработки кадра: ' + e.message, '#D85A30');
+    }
   }
   requestAnimationFrame(loop);
 }

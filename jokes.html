@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Анекдот дня</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fff8ec;
+    --surface: #ffffff;
+    --surface-2: #fdeecf;
+    --border: rgba(40,30,10,.10);
+    --border-strong: rgba(40,30,10,.18);
+    --text: #2b2316;
+    --text-muted: #7a6a4a;
+    --text-dim: #ac9a6f;
+    --accent: #d98c1f;
+    --accent-light: #f0ae4f;
+    --accent-bg: rgba(217,140,31,.12);
+  }
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  body { display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
+
+  header { text-align: center; margin-bottom: 2rem; max-width: 480px; }
+  header .eyebrow {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  }
+  header h1 {
+    font-family: Georgia, serif; font-size: clamp(26px, 6vw, 38px);
+    font-weight: 400; line-height: 1.15; color: var(--text);
+  }
+  header h1 em { font-style: italic; color: var(--accent); }
+  header p { font-size: 14px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
+
+  .app { width: 100%; max-width: 480px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .field { margin-bottom: 1.25rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 600; margin-bottom: 10px; display: block;
+  }
+
+  .pill-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text-muted); font-size: 13px;
+    cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .pill:hover { border-color: var(--accent-light); color: var(--text); }
+  .pill.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+  .slider-current { text-align: center; font-size: 13px; color: var(--text); font-weight: 600; margin-top: 8px; }
+
+  .generate-btn {
+    width: 100%; padding: 15px; font-size: 15px; font-weight: 600;
+    border-radius: 12px; border: none; background: var(--accent); color: #fff;
+    cursor: pointer; transition: background .15s, transform .1s; font-family: inherit;
+    letter-spacing: .01em;
+  }
+  .generate-btn:hover { background: var(--accent-light); }
+  .generate-btn:active { transform: scale(.98); }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem;
+    display: none;
+  }
+  .result-card.show { display: block; animation: fadein .35s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .result-eyebrow {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 14px;
+  }
+  .result-text {
+    font-family: Georgia, serif; font-size: 17px; line-height: 1.7;
+    color: var(--text); white-space: pre-line;
+  }
+
+  .result-actions { display: flex; gap: 10px; margin-top: 1.5rem; }
+  .action-btn {
+    flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text-muted); font-size: 13px;
+    cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .action-btn:hover { border-color: var(--accent-light); color: var(--text); }
+  .action-btn.copied { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .empty-note {
+    font-size: 13px; color: var(--text-dim); margin-top: 10px; display: none;
+  }
+  .empty-note.show { display: block; }
+
+  footer { margin-top: 2.5rem; font-size: 11px; color: var(--text-dim); text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Анекдот дня</p>
+  <h1>Шутка под <em>настроение</em></h1>
+  <p>Выбери стиль юмора, получателя и жёсткость — получи готовый анекдот.</p>
+</header>
+
+<div class="app">
+
+  <div class="card">
+    <div class="field">
+      <span class="field-label">Стиль юмора</span>
+      <div class="pill-grid" id="styleGrid">
+        <button class="pill selected" data-value="folk">Обыгрышный / народный</button>
+        <button class="pill" data-value="office">Офисный / про работу</button>
+        <button class="pill" data-value="absurd">Абсурд / ирония</button>
+        <button class="pill" data-value="dark">Чёрный юмор</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Кому кидать</span>
+      <div class="pill-grid" id="audienceGrid">
+        <button class="pill selected" data-value="friend">Другу / подруге</button>
+        <button class="pill" data-value="colleague">Коллеге / начальнику</button>
+        <button class="pill" data-value="self">Себе (развлечься)</button>
+        <button class="pill" data-value="family">Семье / родителям</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Жёсткость юмора</span>
+      <div class="slider-row">
+        <input type="range" id="edgeSlider" min="1" max="3" step="1" value="1">
+      </div>
+      <div class="slider-labels">
+        <span>Мягко и безобидно</span>
+        <span>Средне</span>
+        <span>Достаточно резко</span>
+      </div>
+      <div class="slider-current" id="edgeLabel">Мягко и безобидно</div>
+    </div>
+  </div>
+
+  <button class="generate-btn" id="generateBtn">Выдать анекдот 😄</button>
+  <p class="empty-note" id="emptyNote">Для этой комбинации пока нет анекдотов в подходящей жёсткости — попробуй снизить жёсткость или сменить стиль.</p>
+
+  <div class="result-card" id="resultCard" style="margin-top: 1rem;">
+    <p class="result-eyebrow">Анекдот дня</p>
+    <p class="result-text" id="resultText"></p>
+    <div class="result-actions">
+      <button class="action-btn" id="copyBtn">Скопировать</button>
+      <button class="action-btn" id="regenBtn">Другой анекдот</button>
+    </div>
+  </div>
+
+</div>
+
+<footer>Работает локально · без интернета и ключей API</footer>
+
+<script>
+// Банк анекдотов. Структура: JOKES[style][edgeLevel] = [массив анекдотов]
+// edgeLevel: 1 = мягко, 2 = средне, 3 = резко
+// Чёрный юмор (dark) начинается минимум с уровня 2 — на уровне 1 предлагаем мягкие аналоги абсурда
+
+const JOKES = {
+  folk: {
+    1: [
+      'Заходит мужик в автобус и спрашивает: — До центра доедем? Водитель: — Доедем, если бензин не кончится. — А когда кончится? — А я почём знаю, я водитель, не пророк.',
+      'Бабка внуку: — Учись хорошо, будешь как Эйнштейн! — Бабуль, а он много зарабатывал? — Не очень, но улицу его именем назвали. — А улицу можно покушать?',
+      'Сидят два соседа на лавочке. — Слышал, у Петровича теперь умный дом? — Да? И что умного? — Свет сам выключает, когда денег нет.',
+      'Заходит человек в магазин: — У вас совесть есть? Продавец: — Есть, но не продаётся, сами понимаете.',
+      'Жена мужу: — Сходи за хлебом. — Сейчас. Через час: — Ты хлеб купил? — Я думал об этом два часа, теперь думаю о смысле жизни.'
+    ],
+    2: [
+      'Идёт мужик по улице, видит объявление: "Курица за рубль". Заходит. — А почему так дёшево? — Потому что без перьев, без мяса и без курицы, только объявление.',
+      'Встречаются два друга. — Как дела на работе? — Отлично, повысили! — Поздравляю! Кем теперь работаешь? — Тем же, но теперь с табличкой "старший".',
+      'Мужик приходит к врачу: — Доктор, у меня память совсем плохая стала. — С каких пор? — С каких пор что?',
+      'Бабушка на рынке торгуется: — Скидку дайте, я ваша постоянная покупательница! — А вы вообще первый раз у нас. — Ну вот, начнём становиться постоянной с сегодня.'
+    ],
+    3: [
+      'Мужик на собеседовании: — Расскажите о своих недостатках. — Честность. — Это не недостаток. — Подождите, я ещё не закончил врать.',
+      'Сосед спрашивает: — Как дела в семье? — Отлично, жена ушла к подруге, я наконец-то отдыхаю. — Надолго? — Она забрала чемодан, видимо, надолго.'
+    ]
+  },
+  office: {
+    1: [
+      'Начальник на совещании: — У кого есть идеи? Тишина. — Отлично, план принят.',
+      'HR на собеседовании: — Расскажите о себе. Кандидат: — Я пунктуальный, ответственный и... — Подождите, вы опоздали на 20 минут. — Именно поэтому я и упомянул пунктуальность, чтобы вы запомнили контраст.',
+      'Объявление в офисе: "Совещание переносится на завтра". Через час: "Завтра тоже переносится".',
+      'Коллега спрашивает: — Что делаешь? — Работаю. — А почему экран с Excel выглядит как пасьянс? — Это и есть пасьянс, просто маскируется под отчёт.'
+    ],
+    2: [
+      'Письмо от начальника: "Срочно нужен отчёт за вчера". Сотрудник отвечает: "Отчёт за вчера будет готов завтра, как и положено по законам времени".',
+      'На митинге обсуждают дедлайн. — Когда сдадим проект? — Когда-нибудь. — Это не дата. — Зато правда.',
+      'Резюме кандидата: "Опыт работы — 5 лет". На собеседовании выясняется, что это пять разных мест по году.',
+      'Корпоративный чат: "Кто видел отчёт за квартал?" Молчание. Через неделю: "Кто видел отчёт за полугодие?"'
+    ],
+    3: [
+      'На корпоративе тимбилдинг: все делают вид, что дружат, чтобы пережить день без увольнений.',
+      'HR пишет: "У нас дружный коллектив". Перевод: "Никто никому не доверяет, но все вежливы из страха перед увольнением".'
+    ]
+  },
+  absurd: {
+    1: [
+      'Заходит кот в библиотеку. Библиотекарь: — Чем могу помочь? Кот: — Мяу. Библиотекарь выдаёт ему книгу про мышей.',
+      'Холодильник спрашивает у микроволновки: — Тебе не одиноко на кухне? Микроволновка: — У меня есть таймер, мы с ним разговариваем.',
+      'Облако пришло к психологу: — Доктор, я постоянно меняю форму. — Это нормально, вы облако. — А мне страшно, что я завтра стану дождём и исчезну.',
+      'Зонт говорит дождю: — Спасибо, что приходишь, иначе я был бы просто декоративным предметом.'
+    ],
+    2: [
+      'Картофель пришёл на терапию: — Доктор, меня все обжаривают, варят, пюрируют. Я больше не чувствую себя личностью, я просто гарнир.',
+      'Будильник просыпается раньше тебя каждый день — потому что у него работа важнее твоего сна.',
+      'Светофор стоит на перекрёстке и думает: "Я единственный, кто решает, кто живёт, а кто опаздывает на работу".'
+    ],
+    3: [
+      'Скелет идёт к врачу: — Доктор, мне нечем переживать. — Это нормально, у вас нет органов, только структура отказа.',
+      'Тень человека жалуется психологу: — Я всегда позади, никто меня не замечает, кроме как в страшных фильмах.'
+    ]
+  },
+  dark: {
+    1: [
+      'Психолог спрашивает: — Что вас беспокоит? — Всё. — А конкретнее? — Конкретнее не хочу, иначе придётся это решать.',
+      'Будильник — это единственный звук, который заставляет тебя жалеть, что ты не умер во сне, но в хорошем смысле.'
+    ],
+    2: [
+      'Жизнь — это игра, где нет сохранений, зато есть налоги.',
+      'Врач говорит: — У вас всё в норме. — Значит, я просто несчастен без причины? — Поздравляю, это и называется нормой.',
+      'Кладбищенский сторож на собеседовании: — Расскажите о своих сильных сторонах. — Я единственный, кто не разговаривает с коллегами, и это все ценят.'
+    ],
+    3: [
+      'Гробовщик жалуется: — Работы много, клиенты, правда, не оставляют отзывов.',
+      'На похоронах спрашивают: — Кем он был при жизни? — Тем, кто всегда опаздывал. На этот раз — навсегда.',
+      'Врач сообщает плохие новости с улыбкой — потому что хорошие новости в его профессии заканчиваются быстрее, чем плохие.'
+    ]
+  }
+};
+
+// Вступительная фраза в зависимости от получателя
+const AUDIENCE_INTRO = {
+  friend: ['Вот анекдот для тебя:', 'Держи, должно понравиться:', 'Этот точно твой уровень юмора:'],
+  colleague: ['Анекдот для рабочего чата:', 'Можно скинуть коллегам:', 'В меру безопасный для офиса вариант:'],
+  self: ['Анекдот для себя — на случай если день не задался:', 'Просто почитай, развеселись:', 'Личный анекдот дня:'],
+  family: ['Анекдот для семейного чата:', 'Можно показать родителям:', 'Безопасный вариант для родных:']
+};
+
+const EDGE_LABELS = {
+  1: 'Мягко и безобидно',
+  2: 'Средне',
+  3: 'Достаточно резко'
+};
+
+let state = {
+  style: 'folk',
+  audience: 'friend',
+  edge: 1
+};
+
+function setupPillGrid(id, stateKey) {
+  document.getElementById(id).addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill');
+    if (!btn) return;
+    document.querySelectorAll(`#${id} .pill`).forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state[stateKey] = btn.dataset.value;
+  });
+}
+
+setupPillGrid('styleGrid', 'style');
+setupPillGrid('audienceGrid', 'audience');
+
+const edgeSlider = document.getElementById('edgeSlider');
+edgeSlider.addEventListener('input', () => {
+  state.edge = parseInt(edgeSlider.value);
+  document.getElementById('edgeLabel').textContent = EDGE_LABELS[state.edge];
+});
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Собирает все шутки с жёсткостью <= выбранного уровня (мягкий уровень включает только мягкие,
+// средний — мягкие и средние, резкий — все три), чтобы выбор слайдера расширял пул, а не сужал его
+function collectJokes(style, maxEdge) {
+  const pool = JOKES[style] || {};
+  let all = [];
+  for (let lvl = 1; lvl <= maxEdge; lvl++) {
+    if (pool[lvl]) all = all.concat(pool[lvl]);
+  }
+  return all;
+}
+
+let lastJoke = null;
+
+function generateJoke() {
+  const pool = collectJokes(state.style, state.edge);
+  const emptyNote = document.getElementById('emptyNote');
+  const resultCard = document.getElementById('resultCard');
+
+  if (pool.length === 0) {
+    emptyNote.classList.add('show');
+    resultCard.classList.remove('show');
+    return;
+  }
+  emptyNote.classList.remove('show');
+
+  // Избегаем повторения того же анекдота подряд, если в пуле больше одного варианта
+  let joke = pick(pool);
+  if (pool.length > 1) {
+    let attempts = 0;
+    while (joke === lastJoke && attempts < 5) {
+      joke = pick(pool);
+      attempts++;
+    }
+  }
+  lastJoke = joke;
+
+  const intro = pick(AUDIENCE_INTRO[state.audience]);
+  const text = `${intro}\n\n${joke}`;
+
+  document.getElementById('resultText').textContent = text;
+  resultCard.classList.add('show');
+  document.getElementById('copyBtn').classList.remove('copied');
+  document.getElementById('copyBtn').textContent = 'Скопировать';
+}
+
+document.getElementById('generateBtn').addEventListener('click', generateJoke);
+document.getElementById('regenBtn').addEventListener('click', generateJoke);
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const text = document.getElementById('resultText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Скопировано ✓';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Скопировать';
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+});
+
+</script>
+</body>
+</html>
